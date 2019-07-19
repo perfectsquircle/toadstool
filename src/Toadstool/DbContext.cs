@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Toadstool
 {
-    public class DbContext : IDbContext, IDbTransactionWrapper
+    public class DbContext : IDbContext, IDbTransactionWrapper, IDbConnectionProvider
     {
         public DbContext() { }
 
@@ -58,7 +58,7 @@ namespace Toadstool
             CleanupActiveConnection();
         }
 
-        internal virtual async Task<IDbConnectionWrapper> GetOpenConnectionAsync(CancellationToken cancellationToken)
+        public virtual async Task<IDbConnectionWrapper> GetOpenConnectionAsync(CancellationToken cancellationToken)
         {
             if (_activeDbConnectionWrapper != null)
             {

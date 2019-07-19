@@ -5,41 +5,41 @@ namespace Toadstool
 {
     internal class DbConnectionWrapper : IDbConnectionWrapper, IDbTransactionWrapper
     {
+        public IDbConnection DbConnection { get; private set; }
+        public IDbTransaction DbTransaction { get; private set; }
         public CommandBehavior CommandBehavior => _transactionIsComplete ? CommandBehavior.CloseConnection : CommandBehavior.Default;
-        private IDbConnection _dbConnection;
-        private IDbTransaction _dbTransaction;
         private bool _transactionIsComplete;
 
         public DbConnectionWrapper(IDbConnection dbConnection)
         {
-            this._dbConnection = dbConnection;
+            DbConnection = dbConnection;
             _transactionIsComplete = true;
         }
 
         public DbConnectionWrapper(IDbConnection dbConnection, IDbTransaction transaction)
         {
-            this._dbConnection = dbConnection;
-            this._dbTransaction = transaction;
+            DbConnection = dbConnection;
+            DbTransaction = transaction;
         }
 
         public IDbCommand CreateCommand()
         {
-            var command = _dbConnection.CreateCommand();
-            command.Connection = _dbConnection;
-            command.Transaction = _dbTransaction;
+            var command = DbConnection.CreateCommand();
+            command.Connection = DbConnection;
+            command.Transaction = DbTransaction;
             return command;
         }
 
         public void Commit()
         {
             _transactionIsComplete = true;
-            _dbTransaction?.Commit();
+            DbTransaction?.Commit();
         }
 
         public void Rollback()
         {
             _transactionIsComplete = true;
-            _dbTransaction?.Rollback();
+            DbTransaction?.Rollback();
         }
 
         public void Dispose()
@@ -51,8 +51,8 @@ namespace Toadstool
         {
             if (force || _transactionIsComplete)
             {
-                _dbTransaction?.Dispose();
-                _dbConnection?.Dispose();
+                DbTransaction?.Dispose();
+                DbConnection?.Dispose();
             }
         }
     }

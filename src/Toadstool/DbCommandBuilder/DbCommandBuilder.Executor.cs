@@ -10,12 +10,12 @@ namespace Toadstool
 {
     internal partial class DbCommandBuilder : IDbCommandExecutor
     {
-        private DbContext _dbContext;
+        private IDbConnectionProvider _dbConnectionProvider;
         private IDataRecordMapper _dataRecordMapper = new DefaultDataRecordMapper();
 
-        public IDbCommandBuilder WithDbContext(DbContext dbContext)
+        public IDbCommandBuilder WithDbContext(IDbConnectionProvider dbConnectionProvider)
         {
-            _dbContext = dbContext;
+            _dbConnectionProvider = dbConnectionProvider;
             return this;
         }
 
@@ -43,32 +43,42 @@ namespace Toadstool
         public async Task<dynamic> SingleOrDefaultAsync(CancellationToken cancellationToken = default) =>
             (await WithReader(reader => ToEnumerable(reader).SingleOrDefault(), cancellationToken));
 
-        public async Task<int> ExecuteAsync(CancellationToken cancellationToken = default)
+        public virtual async Task<int> ExecuteAsync(CancellationToken cancellationToken = default)
         {
-            using (var connection = await _dbContext.GetOpenConnectionAsync(cancellationToken))
+            using (var connection = await _dbConnectionProvider.GetOpenConnectionAsync(cancellationToken))
             using (var command = BuildDbCommand(connection))
             {
                 return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
-        public async Task<T> ExecuteAsync<T>(CancellationToken cancellationToken = default)
+        public virtual async Task<T> ExecuteAsync<T>(CancellationToken cancellationToken = default)
         {
-            using (var connection = await _dbContext.GetOpenConnectionAsync(cancellationToken))
+            using (var connection = await _dbConnectionProvider.GetOpenConnectionAsync(cancellationToken))
             using (var command = BuildDbCommand(connection))
             {
                 return (T)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
             }
         }
 
-        private async Task<TReturn> WithReader<TReturn>(Func<IDataReader, TReturn> callback, CancellationToken cancellationToken)
+        protected virtual async Task<TReturn> WithReader<TReturn>(Func<IDataReader, TReturn> callback, CancellationToken cancellationToken)
         {
-            using (var connection = await _dbContext.GetOpenConnectionAsync(cancellationToken))
+            using (var connection = await _dbConnectionProvider.GetOpenConnectionAsync(cancellationToken))
             using (var command = BuildDbCommand(connection))
             using (var reader = await command.ExecuteReaderAsync(connection.CommandBehavior, cancellationToken).ConfigureAwait(false))
             {
                 return callback.Invoke(reader);
             }
+        }
+
+        protected virtual IEnumerable<T> ToEnumerable<T>(IDataReader dataReader)
+        {
+            return ToEnumerable<T>(dataReader, _dataRecordMapper.CompileMapper<T>(dataReader));
+        }
+
+        protected virtual IEnumerable<dynamic> ToEnumerable(IDataReader dataReader)
+        {
+            return ToEnumerable(dataReader, _dataRecordMapper.CompileMapper(dataReader));
         }
 
         private DbCommand BuildDbCommand(IDbConnectionWrapper connection)
@@ -79,16 +89,6 @@ namespace Toadstool
                 throw new NotSupportedException("Command must be DbCommand");
             }
             return command as DbCommand;
-        }
-
-        private IEnumerable<T> ToEnumerable<T>(IDataReader dataReader)
-        {
-            return ToEnumerable<T>(dataReader, _dataRecordMapper.CompileMapper<T>(dataReader));
-        }
-
-        private IEnumerable<dynamic> ToEnumerable(IDataReader dataReader)
-        {
-            return ToEnumerable(dataReader, _dataRecordMapper.CompileMapper(dataReader));
         }
 
         private IEnumerable<T> ToEnumerable<T>(IDataReader dataReader, Func<IDataRecord, T> mapper)

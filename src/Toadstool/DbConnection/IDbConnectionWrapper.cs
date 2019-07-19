@@ -4,8 +4,10 @@ using System.Threading.Tasks;
 
 namespace Toadstool
 {
-    internal interface IDbConnectionWrapper : IDisposable
+    public interface IDbConnectionWrapper : IDisposable
     {
+        IDbConnection DbConnection { get; }
+        IDbTransaction DbTransaction { get; }
         IDbCommand CreateCommand();
         CommandBehavior CommandBehavior { get; }
     }
