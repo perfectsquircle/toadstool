@@ -17,6 +17,8 @@ namespace Toadstool
             return string.Join("\n", _lines);
         }
 
+        public Task<IEnumerable<T>> QueryAsync<T>(CancellationToken cancellationToken = default) =>
+            ToCommand().QueryAsync<T>(cancellationToken);
         public Task<IList<T>> ToListAsync<T>(CancellationToken cancellationToken = default) =>
             ToCommand().ToListAsync<T>(cancellationToken);
         public Task<T> FirstAsync<T>(CancellationToken cancellationToken = default) =>

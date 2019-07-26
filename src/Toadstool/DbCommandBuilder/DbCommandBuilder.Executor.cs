@@ -20,6 +20,8 @@ namespace Toadstool
         }
 
         // GENERICS
+        public async Task<IEnumerable<T>> QueryAsync<T>(CancellationToken cancellationToken = default) =>
+            await WithReader(reader => ToBufferedEnumerable<T>(reader), cancellationToken);
         public async Task<IList<T>> ToListAsync<T>(CancellationToken cancellationToken = default) =>
             await WithReader(reader => ToEnumerable<T>(reader).ToList(), cancellationToken);
         public async Task<T> FirstAsync<T>(CancellationToken cancellationToken = default) =>
@@ -68,9 +70,16 @@ namespace Toadstool
                 yield break;
             }
 
-            while (dataReader.Read())
+            try
             {
-                yield return mapper.Invoke(dataReader);
+                while (dataReader.Read())
+                {
+                    yield return mapper.Invoke(dataReader);
+                }
+            }
+            finally
+            {
+                dataReader.Dispose();
             }
             yield break;
         }
@@ -78,6 +87,17 @@ namespace Toadstool
         private IEnumerable<T> ToEnumerable<T>(IDataReader dataReader)
         {
             return ToEnumerable<T>(dataReader, _dataRecordMapper.CompileMapper<T>(dataReader));
+        }
+
+        private IEnumerable<T> ToBufferedEnumerable<T>(IDataReader dataReader)
+        {
+            using (var dataTable = new DataTable())
+            {
+                dataTable.Load(dataReader);
+                var dataTableReader = dataTable.CreateDataReader();
+                var mapper = _dataRecordMapper.CompileMapper<T>(dataTableReader);
+                return ToEnumerable(dataTableReader, mapper);
+            }
         }
 
         private IEnumerable<dynamic> ToEnumerable(IDataReader dataReader)

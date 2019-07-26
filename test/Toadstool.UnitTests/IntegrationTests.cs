@@ -14,6 +14,27 @@ namespace Toadstool.UnitTests
     {
         [Theory]
         [MemberData(nameof(GetDbConnection))]
+        public async Task QueryAsync(Func<IDbConnection> dbConnection)
+        {
+            //Given
+            var context = new DbContext()
+                .WithConnection(dbConnection);
+
+            //When
+            var results = await context
+                .Command("select 7 as alpha, 'foo' as beta, 'something' as charlie, 'delta' as delta")
+                .QueryAsync<Bar>();
+
+            //Then
+            Assert.NotNull(results);
+            var bar = Assert.Single(results);
+            Assert.Equal(7, bar.Alpha);
+            Assert.Equal("foo", bar.Beta);
+            Assert.Equal("Can't set me", bar.Charlie);
+        }
+
+        [Theory]
+        [MemberData(nameof(GetDbConnection))]
         public async Task ToListAsync(Func<IDbConnection> dbConnection)
         {
             //Given
